@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Schedule</title>
+</head>
+<body>
+  <div id="root"></div>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    const SCHEDULE = {
+      Monday: [
+        { time: "1:00 – 2:00 PM", prof: "SRS", room: "14", type: "Major" },
+        { time: "2:00 – 3:00 PM", prof: "UM", room: "14", type: "Major" },
+        { time: "3:00 – 4:00 PM", prof: "AP", room: "9", type: "Minor" },
+      ],
+      Tuesday: [
+        { time: "10:00 – 11:00 AM", prof: "UM", room: "14", type: "Major" },
+        { time: "11:00 AM – 12:00 PM", prof: "SC", room: "14", type: "Major" },
+        { time: "12:00 – 1:00 PM", prof: "SC", room: "14", type: "Major" },
+      ],
+      Wednesday: [
+        { time: "1:00 – 2:00 PM", prof: "PP", room: "11", type: "Minor" },
+        { time: "2:00 – 3:00 PM", prof: "SRS", room: "14", type: "Major" },
+        { time: "3:00 – 4:00 PM", prof: "SC", room: "14", type: "Major" },
+        { time: "4:00 – 5:00 PM", prof: "SC", room: "14", type: "Major" },
+      ],
+      Thursday: [
+        { time: "10:00 – 11:00 AM", prof: "SS", room: "14", type: "Major" },
+        { time: "11:00 AM – 12:00 PM", prof: "SS", room: "11", type: "Major" },
+        { time: "12:00 – 1:00 PM", prof: "SRS", room: "15", type: "Major" },
+        { time: "1:00 – 2:00 PM", prof: "PP", room: "2A", type: "Minor" },
+      ],
+      Friday: [
+        { time: "2:00 – 3:00 PM", prof: "SC", room: "14", type: "Major" },
+        { time: "3:00 – 4:00 PM", prof: "SC", room: "14", type: "Major" },
+        { time: "4:00 – 5:00 PM", prof: "PS", room: "14", type: "Major" },
+      ],
+      Saturday: [
+        { time: "10:00 – 11:00 AM", prof: "SS", room: "14", type: "Major" },
+        { time: "11:00 AM – 12:00 PM", prof: "SC", room: "14", type: "Major" },
+        { time: "12:00 – 1:00 PM", prof: "PP", room: "11", type: "Minor" },
+      ],
+      Sunday: [],
+    };
+
+    const parseTime = (timeStr) => {
+      const start = timeStr.split("\u2013")[0].trim();
+      const hasPM = timeStr.includes("PM") && !start.includes("AM");
+      const hasAM = start.includes("AM");
+      let [h, m] = start.replace(/\s*(AM|PM)/i, "").split(":").map(Number);
+      if (hasPM && h !== 12) h += 12;
+      if (hasAM && h === 12) h = 0;
+      return h * 60 + m;
+    };
+
+    const getEndMin = (timeStr) => {
+      const end = timeStr.split("\u2013")[1].trim();
+      const hasPM = end.includes("PM");
+      let [h, m] = end.replace(/\s*(AM|PM)/i, "").split(":").map(Number);
+      if (hasPM && h !== 12) h += 12;
+      return h * 60 + m;
+    };
+
+    function DailySchedule() {
+      const [now, setNow] = useState(new Date());
+
+      useEffect(() => {
+        const id = setInterval(() => setNow(new Date()), 30000);
+        return () => clearInterval(id);
+      }, []);
+
+      const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+      const today = days[now.getDay()];
+      const classes = SCHEDULE[today];
+      const mins = now.getHours() * 60 + now.getMinutes();
+
+      const status = (c) => {
+        const s = parseTime(c.time), e = getEndMin(c.time);
+        if (mins >= s && mins < e) return "live";
+        if (mins >= e) return "done";
+        return "next";
+      };
+
+      const progress = (c) => {
+        const s = parseTime(c.time), e = getEndMin(c.time);
+        if (mins < s) return 0;
+        if (mins >= e) return 100;
+        return ((mins - s) / (e - s)) * 100;
+      };
+
+      const dateStr = now.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+      const timeStr = now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+      const majors = classes.filter(c => c.type === "Major").length;
+      const minors = classes.filter(c => c.type === "Minor").length;
+
+      return (
+        React.createElement("div", { style: S.page },
+          React.createElement("style", null, `
+            @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Karla:wght@400;500;600;700&display=swap');
+            @keyframes fadeUp { from { opacity:0; transform:translateY(8px) } to { opacity:1; transform:translateY(0) } }
+            @keyframes breathe { 0%,100% { opacity:1 } 50% { opacity:.35 } }
+            @keyframes grow { from { transform: scaleX(0) } to { transform: scaleX(1) } }
+            * { box-sizing:border-box; margin:0; padding:0 }
+          `),
+          <div style={S.wrap}>
+            <div style={S.meta}>
+              <span style={S.metaTime}>{timeStr}</span>
+              <span style={S.metaDot}>·</span>
+              <span style={S.metaDate}>{dateStr}</span>
+            </div>
+
+            <h1 style={S.day}>{today}</h1>
+
+            {classes.length > 0 ? (
+              <>
+                <p style={S.summary}>
+                  {classes.length} class{classes.length > 1 ? "es" : ""} — {majors} major{minors > 0 ? `, ${minors} minor` : ""}
+                </p>
+
+                <div style={S.line} />
+
+                <div style={S.list}>
+                  {classes.map((c, i) => {
+                    const st = status(c);
+                    const live = st === "live";
+                    const done = st === "done";
+                    const prog = progress(c);
+
+                    return (
+                      <div key={i} style={{
+                        ...S.card,
+                        animation: `fadeUp .4s ease ${i * .07}s both`,
+                        ...(live ? S.cardLive : done ? S.cardDone : {}),
+                      }}>
+                        {live && (
+                          <div style={S.progressTrack}>
+                            <div style={{
+                              ...S.progressFill,
+                              width: `${prog}%`,
+                              animation: "grow .8s ease both",
+                              transformOrigin: "left",
+                            }} />
+                          </div>
+                        )}
+
+                        <div style={S.cardBody}>
+                          <div style={S.left}>
+                            <span style={{
+                              ...S.timeMain,
+                              color: done ? "#C4B8A8" : "#191613",
+                            }}>
+                              {c.time.split("\u2013")[0].trim()}
+                            </span>
+                            <span style={S.timeSep}>{"\u2013"}</span>
+                            <span style={S.timeSub}>{c.time.split("\u2013")[1].trim()}</span>
+                          </div>
+
+                          <div style={{
+                            ...S.sep,
+                            background: live ? "#BF6A3A" : done ? "#E4DCD1" : "#D9CFC2",
+                          }} />
+
+                          <div style={S.right}>
+                            <div style={S.row1}>
+                              <span style={{
+                                ...S.prof,
+                                color: done ? "#C4B8A8" : "#191613",
+                              }}>
+                                Prof. {c.prof}
+                              </span>
+                              {live && (
+                                <span style={S.liveTag}>
+                                  <span style={{
+                                    display: "inline-block",
+                                    width: 6, height: 6,
+                                    borderRadius: "50%",
+                                    background: "#BF6A3A",
+                                    animation: "breathe 1.6s ease-in-out infinite",
+                                  }} />
+                                  <span> Now</span>
+                                </span>
+                              )}
+                              {done && <span style={S.doneTag}>Done</span>}
+                            </div>
+                            <div style={S.row2}>
+                              <span style={{
+                                ...S.pill,
+                                ...(c.type === "Major"
+                                  ? (done ? S.pillMajorDone : S.pillMajor)
+                                  : (done ? S.pillMinorDone : S.pillMinor)),
+                              }}>{c.type}</span>
+                              <span style={{
+                                ...S.room,
+                                color: done ? "#D4C9BB" : "#918475",
+                              }}>Room {c.room}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              <div style={S.empty}>
+                <div style={{ width: 48, height: 1, background: "#D9CFC2", margin: "0 auto 20px" }} />
+                <p style={S.emptyTitle}>No classes scheduled</p>
+                <p style={S.emptySub}>Enjoy the day.</p>
+              </div>
+            )}
+          </div>
+        )
+      );
+    }
+
+    const S = {
+      page: {
+        minHeight: "100vh",
+        background: "#F8F4EE",
+        fontFamily: "'Karla', -apple-system, sans-serif",
+        display: "flex",
+        justifyContent: "center",
+        padding: "36px 20px",
+        WebkitFontSmoothing: "antialiased",
+      },
+      wrap: { width: "100%", maxWidth: 460 },
+
+      meta: {
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        marginBottom: 6,
+      },
+      metaTime: { fontSize: 13, fontWeight: 600, color: "#918475", letterSpacing: ".2px" },
+      metaDot: { fontSize: 13, color: "#C9BFB1" },
+      metaDate: { fontSize: 13, color: "#B0A494", fontWeight: 500 },
+
+      day: {
+        fontFamily: "'Source Serif 4', Georgia, serif",
+        fontSize: 44,
+        fontWeight: 700,
+        color: "#191613",
+        letterSpacing: "-1px",
+        lineHeight: 1.05,
+        marginBottom: 10,
+      },
+
+      summary: {
+        fontSize: 14,
+        color: "#918475",
+        fontWeight: 500,
+        marginBottom: 20,
+      },
+
+      line: {
+        height: 1,
+        background: "#E4DCD1",
+        marginBottom: 20,
+      },
+
+      list: {
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+      },
+
+      card: {
+        position: "relative",
+        background: "#FFFFFF",
+        borderRadius: 10,
+        border: "1px solid #E8E1D7",
+        overflow: "hidden",
+      },
+      cardLive: {
+        background: "#FFFBF5",
+        border: "1px solid #D4A06A",
+        boxShadow: "0 1px 8px rgba(191,106,58,.08)",
+      },
+      cardDone: {
+        background: "#FBFAF7",
+        border: "1px solid #ECE7DF",
+      },
+
+      progressTrack: { height: 2.5, background: "#EDE5DA" },
+      progressFill: {
+        height: "100%",
+        background: "#BF6A3A",
+        borderRadius: "0 1px 1px 0",
+      },
+
+      cardBody: {
+        display: "flex",
+        alignItems: "stretch",
+        padding: "14px 18px",
+        gap: 14,
+      },
+
+      left: {
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "flex-end",
+        justifyContent: "center",
+        minWidth: 68,
+        gap: 0,
+      },
+      timeMain: {
+        fontSize: 15,
+        fontWeight: 700,
+        fontFamily: "'Karla', sans-serif",
+        letterSpacing: "-.2px",
+      },
+      timeSep: { fontSize: 10, color: "#C9BFB1", lineHeight: 1.2 },
+      timeSub: { fontSize: 12, color: "#A89A8A", fontWeight: 500 },
+
+      sep: {
+        width: 1.5,
+        borderRadius: 1,
+        alignSelf: "stretch",
+      },
+
+      right: {
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        gap: 5,
+      },
+      row1: {
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+      },
+      prof: {
+        fontFamily: "'Source Serif 4', Georgia, serif",
+        fontSize: 17,
+        fontWeight: 600,
+        letterSpacing: "-.2px",
+      },
+      liveTag: {
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+        fontSize: 11,
+        fontWeight: 700,
+        color: "#BF6A3A",
+        letterSpacing: ".4px",
+      },
+      doneTag: {
+        fontSize: 11,
+        fontWeight: 600,
+        color: "#C4B8A8",
+      },
+
+      row2: {
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+      },
+      pill: {
+        fontSize: 10.5,
+        fontWeight: 700,
+        padding: "2px 9px",
+        borderRadius: 5,
+        letterSpacing: ".3px",
+      },
+      pillMajor: { background: "#191613", color: "#F8F4EE" },
+      pillMinor: { background: "transparent", color: "#7A6E5E", border: "1.5px solid #D4C9BB" },
+      pillMajorDone: { background: "#E4DCD1", color: "#B0A494" },
+      pillMinorDone: { background: "transparent", color: "#D4C9BB", border: "1.5px solid #E4DCD1" },
+      room: { fontSize: 12.5, fontWeight: 500 },
+
+      empty: {
+        padding: "70px 20px",
+        textAlign: "center",
+        animation: "fadeUp .5s ease both",
+      },
+      emptyTitle: {
+        fontFamily: "'Source Serif 4', Georgia, serif",
+        fontSize: 22,
+        fontWeight: 600,
+        color: "#191613",
+        marginBottom: 6,
+      },
+      emptySub: {
+        fontSize: 14,
+        color: "#B0A494",
+        fontWeight: 500,
+        fontStyle: "italic",
+        fontFamily: "'Source Serif 4', serif",
+      },
+    };
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<DailySchedule />);
+  </script>
+</body>
+</html>
